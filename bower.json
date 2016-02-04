@@ -1,0 +1,23 @@
+{
+  "name": "node-webserver",
+  "description": "",
+  "main": "server.js",
+  "authors": [
+    "Nathan Baldwin <nathansbaldwin@gmail.com>"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/NathanBaldwin/node-webserver",
+  "moduleType": [],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "public/vendor",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "font-awesome": "fontawesome#^4.5.0",
+    "jquery": "^2.2.0"
+  }
+}
