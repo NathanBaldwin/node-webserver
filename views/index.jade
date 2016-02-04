@@ -2,6 +2,9 @@ doctype html
 html
   head
     title= title
+    link(rel='stylesheet', href='/stylesheets/style.css')
+    link(rel='stylesheet', href='/vendor/font-awesome/css/font-awesome.min.css')
   body
     h1 Welcome to #{title}
     p The date is now #{date.toLocaleDateString('en-US')}
+    i.fa.fa-camera-retro.fa-5x
