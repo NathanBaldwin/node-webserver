@@ -29,6 +29,10 @@ const cheerio = require('cheerio');
 const mongoose = require('mongoose');
 const MONGODB_URL = 'mongodb://localhost:27017/node-webserver';
 
+const News = require('./models/news')
+const AllCaps = require('./models/allcaps')
+const Contact = require('./models/contact')
+
 let db;
 
 
@@ -43,34 +47,7 @@ app.use(require('node-sass-middleware')({
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// http.createServer((req, res) => {
-//   console.log(req.method, req.url);
-//   if (req.url === '/hello') {
-//     const msg = '<h1>Hey Hey There World</h1>';
 
-//     res.writeHead(200, { //telling the browser what it's about to get
-//       'Content-type': 'text/html'
-//     });
-
-//     msg.split('').forEach((char, i) => {
-//       setTimeout(() => {
-//         res.write(char);
-//       }, 1000 * i);
-//     });
-      
-//     setTimeout(()=> {
-//       res.end('<h1>Goodbye World!!</h1>');
-//     }, 2000)
-  
-//   } else if (req.url === '/random!') {
-//     res.end('<h1>Random</h1>')
-//   } else {
-//     res.writeHead(403, { //telling the browser what it's about to get
-//       'Content-type': 'text/html'
-//     })
-//     res.end('<h1> Access Denied! </h1>');
-//   }
-// })
 app.locals.title = 'THE Super Cool App';
 
 //bodyParser is middleware that looks at request, sees if it's a form. If it is, it adds the req.body 
@@ -79,8 +56,9 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
-
-  db.collection('news').findOne({}, {sort: {_id: -1}}, (err, doc) => {
+  News.findOne().sort('-_id').exec(     //.exec executes query
+  // db.collection('news').findOne({}, {sort: {_id: -1}}, 
+  (err, doc) => {
     console.log("doc:", doc);
 
     let headline = doc.top[0].title;
@@ -101,19 +79,32 @@ app.get('/api', (req, res) => {
 })
 
 app.post('/api', (req, res) => {
-  console.log(req.body);
+  // console.log(req.body);
+  // const obj = _.mapValues(req.body, val => val.toUpperCase());
+  // //res.send(obj);
+  // // db.collection('allcaps').insertOne(obj, (err, result) => {
+  //   if (err) throw err;
+
+  //   console.log(result);
+  //   res.send(result.ops[0]);
+  //   const caps = new AllCaps(obj);
+
   const obj = _.mapValues(req.body, val => val.toUpperCase());
-  //res.send(obj);
-  db.collection('allcaps').insertOne(obj, (err, result) => {
+  
+  const caps = new AllCaps(obj);
+
+  caps.save((err, _caps) => {
     if (err) throw err;
 
-    console.log(result);
-    res.send(result.ops[0]);
+    res.send(_caps);
   });
 });
 
 app.get('/api/news', (req, res) => {
-  db.collection('news').findOne({}, {sort: {_id: -1}}, (err, doc) => { //sort method grabs last one (reverses order)
+  News.findOne().sort('-_id').exec(
+
+  //db.collection('news').findOne({}, {sort: {_id: -1}},
+   (err, doc) => { //sort method grabs last one (reverses order)
     console.log("doc:", doc);
     if (doc) {
       const FIFTEEN_MINUTES_IN_MS = 15 * 60 * 1000;
@@ -152,35 +143,52 @@ app.get('/api/news', (req, res) => {
         });
       });
 
-      db.collection('news').insertOne({ top: news }, (err, result) => {
-        // if (err) throw err;
+      const obj = new News({ top: news });
 
-        res.send(news);
+      obj.save((err, newNews) => {
+        if (err) throw err;
+      // News.insertOne({})
+      // //db.collection('news').insertOne({ top: news }, (err, result) => {
+      //   // if (err) throw err;
+      // obj.save((err, newNews) => {
+      // if (err) throw err;
+
+      // res.send(newNews);
+
+        res.send(newNews);
       });
     });
-  }) 
+  });
 });
+
+      
 
 app.post('/contact', (req, res) => {
-  //debugger
-
-  console.log("saved file as:", req.body.name);
-  const name = req.body.name; //key of name come from name attr in jade doc.
-  const email = req.body.email;
-  const message = req.body.message;
-
-  let contactDoc = {
-    name: name,
-    email: email,
-    message: message
-  }
   
-  console.log("contactDoc", contactDoc);
+  const obj = new Contact({
+    name: req.body.name,
+    email: req.body.email,
+    message: req.body.message
+  });
 
-  db.collection('contacts').insertOne(contactDoc)
+  obj.save((err, newObj) => {
+    if (err) throw err;
 
-  res.send(`<h1>Thanks for contacting us ${name}</h1>`);
+    console.log(newObj);
+    res.send(`<h1>Thanks for contacting us ${newObj.name}</h1>`);
+  });
+
+  // db.collection('contact').insertOne(obj, (err, result) => {
+  //   if (err) throw err;
+
+  //   res.send(`<h1>Thanks for contacting us ${obj.name}</h1>`);
+  // });
 });
+
+  // db.collection('contacts').insertOne(contactDoc)
+
+  // res.send(`<h1>Thanks for contacting us ${name}</h1>`);
+// });
 
 app.get('/contact', (req, res) => {
   res.render('contact');
@@ -279,20 +287,22 @@ app.all('*', (req, res) => {
   // res.end('Access Denied!'); don't need res.end in express
 });
 
-MongoClient.connect(MONGODB_URL, (err, database) => {
-  if (err) throw err;
+mongoose.connect(MONGODB_URL);
 
-  database.collection('docs').insertMany([
-      {a: 'b'}, {c: 'd'}, {e: 'f'}
-    ], (err, res) => {
-      if (err) throw err;
-      console.log("res:", res);
-    });
+mongoose.connection.on('open', () => {
+  console.log('MONGO OPEN');
+
+  // database.collection('docs').insertMany([ 
+  //     {a: 'b'}, {c: 'd'}, {e: 'f'}
+  //   ], (err, res) => {
+  //     if (err) throw err;
+  //     console.log("res:", res);
+  //   });
   
-  db = database; //let db defined on line 31. Now we can have access to db
+  // db = database; //let db defined on line 31. Now we can have access to db
   //in other app.commands;
 
-  console.log("db:", db);
+  // console.log("db:", db);
   app.listen(PORT, () => {
     console.log(`Node.js server started. Listening on port ${PORT}`);
   });
