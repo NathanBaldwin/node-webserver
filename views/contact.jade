@@ -1,20 +1,13 @@
-doctype html
-html
-  head
-    title #{title}
-    link(rel='stylesheet', href='/stylesheets/style.css')
-  body
-    .container
-      h1 Contact
-      form(method='POST')
-        .form-group
-          label Name
-          input(type='text', name='name', placeholder='Name')
-        .form-group
-          label Email
-          input(type='email', name='email', placeholder='Email')
-        .form-group
-          label Message
-          input(type='subtextarea', name='message', placeholder='Message')
-        .form-group
-          input(type='submit', value='Contact Us')
+
+form(method='POST')
+  .form-group
+    label Name
+    input(type='text', name='name', placeholder='Name')
+  .form-group
+    label Email
+    input(type='email', name='email', placeholder='Email')
+  .form-group
+    label Message
+    input(type='subtextarea', name='message', placeholder='Message')
+  .form-group
+    input(type='submit', value='Contact Us')

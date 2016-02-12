@@ -22,6 +22,16 @@ const imgur = require('imgur');
 const upload = multer({storage: storage});//requiring and executing multer and specifying destination
 const app = express(); //executing/running the server;
 const PORT = process.env.PORT || 3000;
+const request = require('request'); //module to go to url (like curl)
+const _ = require('lodash');
+const cheerio = require('cheerio');
+//const MongoClient = require('mongodb').MongoClient;//don't need the mongo driver if using mongoose
+const mongoose = require('mongoose');
+const MONGODB_URL = 'mongodb://localhost:27017/node-webserver';
+
+let db;
+
+
 app.set('view engine', 'jade'); //configures node to read jade
 
 app.use(require('node-sass-middleware')({
@@ -30,6 +40,7 @@ app.use(require('node-sass-middleware')({
   indentedSyntax: true,
   sourceMap: true
 }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // http.createServer((req, res) => {
@@ -64,22 +75,110 @@ app.locals.title = 'THE Super Cool App';
 
 //bodyParser is middleware that looks at request, sees if it's a form. If it is, it adds the req.body 
 //so we can receive form. Need this to receive form.
-//app.use(bodyParser.urlencoded({extended: false})); 
+app.use(bodyParser.urlencoded({extended: false})); 
+app.use(bodyParser.json());
 
 app.get('/', (req, res) => {
+
+  db.collection('news').findOne({}, {sort: {_id: -1}}, (err, doc) => {
+    console.log("doc:", doc);
+
+    let headline = doc.top[0].title;
+    console.log("headline", headline);
+
     
     res.render('index', { //by default, render looks for a views directory
       title: 'Super Cool App',
-      date: new Date()
+      date: new Date(),
+      headline: headline
+    });
+  })
+});
 
+app.get('/api', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*')//resets header to allow calls from anywhere, not just our server
+  res.send({hello: 'World'});//interprets this as json
+})
+
+app.post('/api', (req, res) => {
+  console.log(req.body);
+  const obj = _.mapValues(req.body, val => val.toUpperCase());
+  //res.send(obj);
+  db.collection('allcaps').insertOne(obj, (err, result) => {
+    if (err) throw err;
+
+    console.log(result);
+    res.send(result.ops[0]);
   });
+});
+
+app.get('/api/news', (req, res) => {
+  db.collection('news').findOne({}, {sort: {_id: -1}}, (err, doc) => { //sort method grabs last one (reverses order)
+    console.log("doc:", doc);
+    if (doc) {
+      const FIFTEEN_MINUTES_IN_MS = 15 * 60 * 1000;
+      const diff = new Date() - doc._id.getTimestamp() - FIFTEEN_MINUTES_IN_MS;
+      const lessThan15MinutesAgo = diff < 0;
+
+      if (lessThan15MinutesAgo) {
+        res.send(doc);
+        return;
+      }
+    }
+
+    const url = 'http://cnn.com';
+
+    request.get(url, (err, response, html) => {
+      if (err) throw err;
+
+      const news = [];
+      const $ = cheerio.load(html);
+
+      const $bannerText = $('.banner-text');
+
+      news.push({
+        title: $bannerText.text(),
+        url: url + $bannerText.closest('a').attr('href')
+      });
+
+      const $cdHeadline = $('.cd__headline');
+
+      _.range(1, 12).forEach(i => {
+        const $headline = $cdHeadline.eq(i);
+
+        news.push({
+          title: $headline.text(),
+          url: url + $headline.find('a').attr('href')
+        });
+      });
+
+      db.collection('news').insertOne({ top: news }, (err, result) => {
+        // if (err) throw err;
+
+        res.send(news);
+      });
+    });
+  }) 
 });
 
 app.post('/contact', (req, res) => {
   //debugger
+
   console.log("saved file as:", req.body.name);
   const name = req.body.name; //key of name come from name attr in jade doc.
+  const email = req.body.email;
+  const message = req.body.message;
+
+  let contactDoc = {
+    name: name,
+    email: email,
+    message: message
+  }
   
+  console.log("contactDoc", contactDoc);
+
+  db.collection('contacts').insertOne(contactDoc)
+
   res.send(`<h1>Thanks for contacting us ${name}</h1>`);
 });
 
@@ -99,15 +198,27 @@ app.post('/sendphoto', upload.single('image'), (req, res) => {//image is name at
   console.log("name:", name);
   console.log("req.file.path:", req.file.path);
 
+
   
   imgur.uploadFile(req.file.path)
     .then(function (json) {
+
+        let photoLink = {
+         photo: json.data.link
+        }
         console.log('photo link:', json.data.link);
+
+        db.collection('images').insertOne(photoLink, (err, result) => {
+        if (err) throw err;
+        console.log(result);
+        res.send(`<img src=${result.ops[0].photo}>`)
+      });
+
     })
     .catch(function (err) {
         console.error(err.message);
     });
-  res.send('<h1>Thanks for sending us your photo</h1>');
+  //res.send('<h1>Thanks for sending us your photo</h1>');
   //now we need to except the form:
 
 })
@@ -168,6 +279,22 @@ app.all('*', (req, res) => {
   // res.end('Access Denied!'); don't need res.end in express
 });
 
-app.listen(PORT, () =>   {
-  console.log(`Node.js server started. Listening on port ${PORT}`);
-});
+MongoClient.connect(MONGODB_URL, (err, database) => {
+  if (err) throw err;
+
+  database.collection('docs').insertMany([
+      {a: 'b'}, {c: 'd'}, {e: 'f'}
+    ], (err, res) => {
+      if (err) throw err;
+      console.log("res:", res);
+    });
+  
+  db = database; //let db defined on line 31. Now we can have access to db
+  //in other app.commands;
+
+  console.log("db:", db);
+  app.listen(PORT, () => {
+    console.log(`Node.js server started. Listening on port ${PORT}`);
+  });
+})
+
