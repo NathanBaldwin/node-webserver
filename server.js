@@ -20,7 +20,7 @@ const MONGODB_AUTH = MONGODB_USER
 
 const MONGODB_URL = `mongodb://${MONGODB_AUTH}${MONGODB_HOST}:${MONGODB_PORT}/${MONGODB_DB_NAME}`
 
-const routes = require('./Routes/');
+const routes = require('./routes/');
 
 
 app.set('view engine', 'jade'); //configures node to read jade
