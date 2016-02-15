@@ -11,7 +11,6 @@ const random = require('./random');
 const sendphoto = require('./sendphoto');
 const cal = require('./cal');
 
-
 router.use(api);
 router.use(contact);
 router.use(hello);
