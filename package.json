@@ -30,6 +30,7 @@
     "mongoose": "^4.4.3",
     "multer": "^1.1.0",
     "node-cal": "github:nathanbaldwin/node-cal",
+    "node-sass-middleware": "^0.9.7",
     "request": "^2.69.0"
   },
   "devDependencies": {
