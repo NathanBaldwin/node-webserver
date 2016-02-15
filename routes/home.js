@@ -11,6 +11,8 @@ router.get('/', (req, res) => {
   (err, doc) => {
     console.log("doc:", doc);
 
+     doc = doc || {top: [{title: ''}]};
+
     let headline = doc.top[0].title;
     console.log("headline", headline);
 
